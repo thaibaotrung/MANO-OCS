@@ -7,7 +7,6 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.acme.Model.*;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.IOException;
@@ -18,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 @ApplicationScoped
-public class Services {
+public class TOSCA_Services {
 
     public Deployment addDeployment() throws IOException {
         String metadataFilePath = "D:\\20232\\TOSCA\\metadata\\tosca.yaml";
@@ -455,45 +454,7 @@ public class Services {
         }
         return null;
     }
-//    public Uni<Void> addVnf(@PathParam("namespace") String namespace) throws IOException {
-//        String toscaFilePath = "D:\\NFVM\\src\\main\\resources\\TOSCA.yaml";
-//
-//        String toscaContent = new String(Files.readAllBytes(Paths.get(toscaFilePath)));
-//
-//        Yaml yaml = new Yaml();
-//        Object parsedObject = yaml.load(toscaContent);
-//
-//        if (parsedObject instanceof Map) {
-//            Map<String, Object> toscaMap = (Map<String, Object>) parsedObject;
-//            Map<String, Object> topologyTemplate = (Map<String, Object>) toscaMap.get("topology_template");
-//            Map<String, Object> nodeTemplates = (Map<String, Object>) topologyTemplate.get("node_templates");
-//            Map<String, Object> vnf001 = (Map<String, Object>) nodeTemplates.get("vnf_001");
-//            Map<String, Object> properties = (Map<String, Object>) vnf001.get("properties");
-//
-//            String vnfInstanceName = (String) properties.get("vnfInstanceName");
-//            String vnfInstanceDescription = (String) properties.get("vnfInstanceDescription");
-//            String vnfdid = (String) properties.get("vnfdid");
-//            String vnfProvider = (String) properties.get("vnfProvider");
-//            String vnfProductName = (String) properties.get("vnfProductName");
-//            String vnfSoftwareVersion = (String) properties.get("vnfSoftwareVersion");
-//            String instantiationState = (String) properties.get("instantiationState");
-//
-//
-//            Document document = new Document();
-//            document.append("vnfInstanceName", vnfInstanceName);
-//            document.append("vnfInstanceDescription", vnfInstanceDescription);
-//            document.append("vnfdid", vnfdid);
-//            document.append("vnfProvider", vnfProvider);
-//            document.append("vnfProductName", vnfProductName);
-//            document.append("vnfSoftwareVersion", vnfSoftwareVersion);
-//            document.append("instantiationState", instantiationState);
-//
-//            return getCollection().insertOne(document)
-//                    .onItem().ignore().andContinueWithNull();
-//        }
-//
-//        return null;
-//    }
+
 
     public Uni<Deployment> getMongoDeployment() throws IOException {
         String mongoDeploymentFilePath = "D:\\20232\\TOSCA\\k8s_resources\\mongo_deployment.yaml";

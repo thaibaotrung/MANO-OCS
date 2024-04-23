@@ -8,15 +8,15 @@ import org.acme.Model.ConfigMap;
 import org.acme.Model.Deployment;
 import org.acme.Model.Secret;
 import org.acme.Model.Service;
-import org.acme.Service.Services;
+import org.acme.Service.TOSCA_Services;
 import java.io.IOException;
 
 @Path("/vnfd")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-public class Controller {
+public class TOSCA_Controller {
     @Inject
-    Services services;
+    TOSCA_Services services;
 
     @POST
     @Path("/Deployment")

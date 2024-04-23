@@ -10,6 +10,7 @@ public class Vnfd {
     private String version;
     private String createdBy;
 
+    private String state;
     private String provider;
     private Vdu vdu;
 
@@ -133,6 +134,14 @@ public class Vnfd {
 
     public void setProvider(String provider) {
         this.provider = provider;
+    }
+
+    public String getState() {
+        return state;
+    }
+
+    public void setState(String state) {
+        this.state = state;
     }
 
     public Vdu getVdu() {
