@@ -2,10 +2,10 @@ package org.acme.Service;
 
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.api.model.apps.DeploymentList;
+import io.fabric8.kubernetes.client.*;
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.ConfigBuilder;
-import io.fabric8.kubernetes.client.DefaultKubernetesClient;
-import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.quarkus.mongodb.reactive.ReactiveMongoClient;
 import io.quarkus.mongodb.reactive.ReactiveMongoCollection;
@@ -13,10 +13,16 @@ import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.QueryParam;
+import org.acme.Model.Instance;
 import org.acme.Model.VNF_Instance;
 import org.acme.Model.VNFc;
 import org.bson.Document;
-import org.bson.types.ObjectId;
+
+
+import javax.print.Doc;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 
 import java.nio.file.Files;
@@ -27,37 +33,37 @@ import java.util.List;
 @ApplicationScoped
 public class LCM_Services {
     Config config = new ConfigBuilder()
-            .withMasterUrl("https://127.0.0.1:58209")
+            .withMasterUrl("https://127.0.0.1:53242")
             .withTrustCerts(true)
             .build();
 
 
-    public Uni<Void> Instantiate(@PathParam("name") String name) throws InterruptedException {
+    public CompletableFuture<Void> Instantiate(@PathParam("name") String name) throws InterruptedException {
 
         try (KubernetesClient client = new DefaultKubernetesClient(config)) {
 
-            String secretYamlPath = "D:\\20232\\TOSCA\\k8s_resources\\secret.yaml";
+            String secretYamlPath = "D:\\TOSCA\\TOSCA\\k8s_resources\\secret.yaml";
             byte[] secretYamlBytes = Files.readAllBytes(Paths.get(secretYamlPath));
             String secretYamlContent = new String(secretYamlBytes);
 
             Secret secret = Serialization.unmarshal(secretYamlContent, Secret.class);
             client.secrets().inNamespace(name).create(secret);
 
-            String configMapYamlPath = "D:\\20232\\TOSCA\\k8s_resources\\configMap.yaml";
+            String configMapYamlPath = "D:\\TOSCA\\TOSCA\\k8s_resources\\configMap.yaml";
             byte[] configMapYamlBytes = Files.readAllBytes(Paths.get(configMapYamlPath));
             String configMapYamlContent = new String(configMapYamlBytes);
 
             ConfigMap configMap = Serialization.unmarshal(configMapYamlContent, ConfigMap.class);
             client.configMaps().inNamespace(name).create(configMap);
 
-            String MongodeploymentYamlPath = "D:\\20232\\TOSCA\\k8s_resources\\mongo_deployment.yaml";
+            String MongodeploymentYamlPath = "D:\\TOSCA\\TOSCA\\k8s_resources\\mongo_deployment.yaml";
             byte[] MongodeploymentYamlBytes = Files.readAllBytes(Paths.get(MongodeploymentYamlPath));
             String MongodeploymentYamlContent = new String(MongodeploymentYamlBytes);
 
             Deployment Mongodeployment = Serialization.unmarshal(MongodeploymentYamlContent, Deployment.class);
             client.apps().deployments().inNamespace(name).create(Mongodeployment);
 
-            String WebdeploymentYamlPath = "D:\\20232\\TOSCA\\k8s_resources\\web_deployment.yaml";
+            String WebdeploymentYamlPath = "D:\\TOSCA\\TOSCA\\k8s_resources\\web_deployment.yaml";
             byte[] WebdeploymentYamlBytes = Files.readAllBytes(Paths.get(WebdeploymentYamlPath));
             String WebdeploymentYamlContent = new String(WebdeploymentYamlBytes);
 
@@ -65,7 +71,7 @@ public class LCM_Services {
             client.apps().deployments().inNamespace(name).create(Webdeployment);
 
 
-            String MongoServiceYamlPath = "D:\\20232\\TOSCA\\k8s_resources\\mongo_service.yaml";
+            String MongoServiceYamlPath = "D:\\TOSCA\\TOSCA\\k8s_resources\\mongo_service.yaml";
             byte[] MongoServiceYamlBytes = Files.readAllBytes(Paths.get(MongoServiceYamlPath));
             String MongoServiceYamlContent = new String(MongoServiceYamlBytes);
 
@@ -73,7 +79,7 @@ public class LCM_Services {
             client.services().inNamespace(name).create(MongoService);
 
 
-            String WebServiceYamlPath = "D:\\20232\\TOSCA\\k8s_resources\\web_service.yaml";
+            String WebServiceYamlPath = "D:\\TOSCA\\TOSCA\\k8s_resources\\web_service.yaml";
             byte[] WebServiceYamlBytes = Files.readAllBytes(Paths.get(WebServiceYamlPath));
             String WebServiceYamlContent = new String(WebServiceYamlBytes);
 
@@ -106,16 +112,53 @@ public class LCM_Services {
                 listVNFc.add(vnfc);
             }
 
+            DeploymentList deploymentList = client.apps().deployments().inNamespace(name).list();
+            List<VNFc> listDeployment = new ArrayList<>();
+            for(Deployment deployment : deploymentList.getItems()){
+                String name1 = deployment.getMetadata().getName();
+                VNFc vnFc = new VNFc();
+                vnFc.setName(name1);
+                vnFc.setNumberofinstance(1);
+                listDeployment.add(vnFc);
+            }
+
+            Document document = new Document()
+                    .append("vnfc", listDeployment)
+                    .append("name", name);
+
+//             getInstanceCollection().insertOne(document).onItem().ignore().andContinueWithNull();
 
             Document query = new Document("name", name);
 //            Document update = new Document("$set", new Document("vnfc", listVNFc));
 //            Document update1 = new Document("$set", new Document("state", "IN_USE"));
             Document update = new Document("$set", new Document("vnfc", listVNFc).append("state", "IN_USE"));
-            return getCollection().updateMany(query, update)
-                    .onItem().ignore().andContinueWithNull();
+//            return getCollection().updateMany(query, update)
+//                    .onItem().ignore().andContinueWithNull();
 //             getCollection().updateOne(query, update1)
 //                    .onItem().ignore().andContinueWithNull();
 //             return null;
+
+            CompletableFuture<Void> future = new CompletableFuture<>();
+
+            getInstanceCollection().insertOne(document)
+                    .onItem().ignore().andContinueWithNull()
+                    .subscribe().with(result -> {
+                        // Xử lý kết quả nếu cần
+                        // Đối với insertOne, thường không cần xử lý kết quả ở đây
+                    });
+
+            getCollection().updateMany(query, update)
+                    .onItem().ignore().andContinueWithNull()
+                    .subscribe().with(result -> {
+                        // Xử lý kết quả nếu cần
+                        // Đối với updateMany, thường không cần xử lý kết quả ở đây
+                    });
+
+            // Khi cả hai hoạt động hoàn thành, hoặc bất kỳ lỗi nào xảy ra,
+            // chúng ta gán giá trị null cho CompletableFuture để hoàn thành nó
+            future.complete(null);
+
+            return future;
         }
         catch (Exception e) {
             e.printStackTrace();
@@ -128,12 +171,12 @@ public class LCM_Services {
 
     public Uni<Void> Terminate(@PathParam("name") String name){
         try (KubernetesClient client = new DefaultKubernetesClient(config)) {
-            client.apps().deployments().inNamespace(name).withName("mongo-deployment").delete();
-            client.apps().deployments().inNamespace(name).withName("webapp-deployment").delete();
-            client.services().inNamespace(name).withName("mongo-service").delete();
-            client.services().inNamespace(name).withName("webapp-service").delete();
-            client.secrets().inNamespace(name).withName("mongo-secret").delete();
-            client.configMaps().inNamespace(name).withName("mongo-config").delete();
+            client.apps().deployments().inNamespace(name).delete();
+            client.apps().deployments().inNamespace(name).delete();
+            client.services().inNamespace(name).delete();
+            client.services().inNamespace(name).delete();
+            client.secrets().inNamespace(name).delete();
+            client.configMaps().inNamespace(name).delete();
             System.out.println("Pod đã được tắt.");
         }
         Document query = new Document("name", name);
@@ -146,11 +189,86 @@ public class LCM_Services {
 
     }
 
-    public Uni<Void> HeaingVnf(@PathParam("name") String name){
+//    public Uni<Void> HealingVnf(@PathParam("name") String name) {
+//        final Watch[] watch = {null};
+//        try (KubernetesClient client = new DefaultKubernetesClient(config)) {
+//            // Tắt các pod có nhãn app: "reddit" trong namespace "default"
+//            List<VNFc> listVNFc = new ArrayList<>();
+//            client.pods().inNamespace(name).delete();
+//            System.out.println("Các pod đã được tắt.");
+//
+//            // Sử dụng Watch API để theo dõi sự thay đổi trạng thái của các Pod
+//            watch[0] = client.pods().inNamespace(name).watch(new Watcher<Pod>() {
+//                @Override
+//                public void eventReceived(Action action, Pod pod) {
+//                    String podName = pod.getMetadata().getName();
+//                    String state = pod.getStatus().getPhase();
+//
+//                    if ("Running".equals(state)) {
+//                        // Nếu Pod đang ở trạng thái "Running", thêm dữ liệu vào database
+////                        List<VNFc> listVNFc = new ArrayList<>();
+//                        listVNFc.add(createVNFcFromPod(pod));
+//
+////                        Document query = new Document("name", name);
+////                        Document update = new Document("$set", new Document("vnfc", listVNFc));
+////                        getCollection().updateOne(query, update)
+////                                .onItem().ignore().andContinueWithNull();
+//
+//                        // Dừng việc theo dõi khi Pod đã được chạy
+//                        if (watch[0] != null) {
+//                            watch[0].close();
+//                        }
+//                    }
+//                }
+//
+//                @Override
+//                public void onClose(WatcherException cause) {
+//                    if (cause != null) {
+//                        throw new RuntimeException(cause);
+//                    }
+//                }
+//            });
+//
+//            Document query = new Document("name", name);
+//            Document update = new Document("$set", new Document("vnfc", listVNFc));
+//            return getCollection().updateOne(query, update)
+//                    .onItem().ignore().andContinueWithNull();
+//
+//        } catch (Exception e) {
+//            if (watch[0] != null) {
+//                watch[0].close();
+//            }
+//            throw new RuntimeException(e);
+//        }
+//    }
+
+    // Hàm này tạo đối tượng VNFc từ một Pod
+    private VNFc createVNFcFromPod(Pod pod) {
+        String ip = pod.getStatus().getPodIP();
+        String state = pod.getStatus().getPhase();
+        String uid = pod.getMetadata().getUid();
+        String podName = pod.getMetadata().getName();
+        String nodeName = pod.getSpec().getNodeName();
+
+        VNFc vnfc = new VNFc();
+        vnfc.setId(uid);
+        vnfc.setName(podName);
+        vnfc.setIp(ip);
+        vnfc.setNodeName(nodeName);
+        vnfc.setState(state);
+
+        return vnfc;
+    }
+
+
+
+
+
+
+    public Uni<Void> HealingVnf(@PathParam("name") String name){
         try (KubernetesClient client = new DefaultKubernetesClient(config)) {
             // Tắt các pod có nhãn app: "reddit" trong namespace "default"
-            client.pods().inNamespace(name).withLabel("app", "mongo").delete();
-            client.pods().inNamespace(name).withLabel("app", "webapp").delete();
+            client.pods().inNamespace(name).delete();
             System.out.println("Các pod đã được tắt.");
 
 
@@ -184,7 +302,162 @@ public class LCM_Services {
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
+
     }
+
+
+
+    public CompletableFuture<Void> scaleVNF(@PathParam("name") String name, VNFc vnFc, @QueryParam("vnfcName") String vnfcName) throws InterruptedException {
+
+        try (KubernetesClient client = new DefaultKubernetesClient(config)) {
+            client.apps().deployments().inNamespace(name).withName(vnfcName)
+                    .scale(vnFc.getNumberofinstance());
+
+                            TimeUnit.SECONDS.sleep(15);
+                PodList podList = client.pods().inNamespace(name).list();
+
+                List<VNFc> listVNFc = new ArrayList<>();
+                // In ra tên của các Pod
+                for (Pod pod : podList.getItems()) {
+                    String ip = pod.getStatus().getPodIP();
+                    String state = pod.getStatus().getPhase();
+                    String uid = pod.getMetadata().getUid();
+                    String podName = pod.getMetadata().getName();
+                    String nodeName = pod.getSpec().getNodeName();
+
+                    VNFc vnfc = new VNFc();
+                    vnfc.setId(uid);
+                    vnfc.setName(podName);
+                    vnfc.setIp(ip);
+                    vnfc.setNodeName(nodeName);
+                    vnfc.setState(state);
+
+                    listVNFc.add(vnfc);
+                }
+
+
+                Document query = new Document("name", name);
+//            Document update = new Document("$set", new Document("vnfc", listVNFc));
+//            Document update1 = new Document("$set", new Document("state", "IN_USE"));
+                Document update = new Document("$set", new Document("vnfc", listVNFc));
+//                return getCollection().updateMany(query, update)
+//                        .onItem().ignore().andContinueWithNull();
+
+            Document document1 = new Document("$set", new Document("vnfc.$.numberofinstance", vnFc.getNumberofinstance()));
+
+            Document query1 = new Document(
+                    "vnfc",
+                    new Document("$elemMatch",
+                            new Document()
+                                    .append("name", vnfcName)
+                    )
+            )
+                    .append("name", name);
+
+//            return getInstanceCollection().updateOne(query1, document1).onItem().ignore()
+//                    .andContinueWithNull();
+
+            CompletableFuture<Void> future = new CompletableFuture<>();
+
+            getCollection().updateMany(query, update)
+                    .onItem().ignore().andContinueWithNull()
+                    .subscribe().with(result -> {
+                        // Xử lý kết quả nếu cần
+                        // Đối với insertOne, thường không cần xử lý kết quả ở đây
+                    });
+
+            getInstanceCollection().updateOne(query1, document1).onItem().ignore()
+                    .andContinueWithNull()
+                    .subscribe().with(result -> {
+                        // Xử lý kết quả nếu cần
+                        // Đối với updateMany, thường không cần xử lý kết quả ở đây
+                    });
+
+            // Khi cả hai hoạt động hoàn thành, hoặc bất kỳ lỗi nào xảy ra,
+            // chúng ta gán giá trị null cho CompletableFuture để hoàn thành nó
+            future.complete(null);
+
+            return future;
+        }
+
+//        Document document1 = new Document("$set", new Document("vnfc.$.numberofinstance", vnFc.getNumberofinstance()));
+//
+//        Document query1 = new Document(
+//                "vnfc",
+//                new Document("$elemMatch",
+//                        new Document()
+//                                .append("name", vnfcName)
+//                )
+//        )
+//                .append("name", name);
+//
+//        return getInstanceCollection().updateOne(query1, document1).onItem().ignore()
+//                .andContinueWithNull();
+    }
+//        try (KubernetesClient client = new DefaultKubernetesClient(config)) {
+//            DeploymentList deploymentList = client.apps().deployments().inNamespace(name).list();
+//            List<VNFc> listDeployment = new ArrayList<>();
+//            for (Deployment deployment : deploymentList.getItems()) {
+//                String name1 = deployment.getMetadata().getName();
+//                VNFc vnFc = new VNFc();
+//                vnFc.setName(name1);
+//                vnFc.setNumberofinstance(2);
+//                listDeployment.add(vnFc);
+//            }
+//            Document query = new Document("name", name);
+//
+//            Document document = new Document()
+//                    .append("$set", new Document("vnfc", listDeployment));
+//
+//            return getInstanceCollection().updateOne(query, document).onItem().ignore().andContinueWithNull();
+//        }
+//    }
+//            try (KubernetesClient client = new DefaultKubernetesClient(config)) {
+////                client.apps().deployments().inNamespace(name).withLabel("app", "mongo")
+////                        .resources()
+////                        .forEach(s -> s.scale(x));
+////                client.apps().deployments().inNamespace(name).withLabel("app", "webapp")
+////                        .resources()
+////                        .forEach(s -> s.scale(y));
+//
+//
+//
+//                TimeUnit.SECONDS.sleep(15);
+//                PodList podList = client.pods().inNamespace(name).list();
+//
+//                List<VNFc> listVNFc = new ArrayList<>();
+//                // In ra tên của các Pod
+//                for (Pod pod : podList.getItems()) {
+//                    String ip = pod.getStatus().getPodIP();
+//                    String state = pod.getStatus().getPhase();
+//                    String uid = pod.getMetadata().getUid();
+//                    String podName = pod.getMetadata().getName();
+//                    String nodeName = pod.getSpec().getNodeName();
+//
+//                    VNFc vnfc = new VNFc();
+//                    vnfc.setId(uid);
+//                    vnfc.setName(podName);
+//                    vnfc.setIp(ip);
+//                    vnfc.setNodeName(nodeName);
+//                    vnfc.setState(state);
+//
+//                    listVNFc.add(vnfc);
+//                }
+//
+//
+//                Document query = new Document("name", name);
+////            Document update = new Document("$set", new Document("vnfc", listVNFc));
+////            Document update1 = new Document("$set", new Document("state", "IN_USE"));
+//                Document update = new Document("$set", new Document("vnfc", listVNFc));
+//                return getCollection().updateMany(query, update)
+//                        .onItem().ignore().andContinueWithNull();
+//
+//            } catch (InterruptedException e) {
+//                throw new RuntimeException(e);
+//            }
+
+
+
 
     public Uni<List<VNF_Instance>> listVNF(){
         return getCollection()
@@ -200,6 +473,37 @@ public class LCM_Services {
                 }).collect().asList();
     }
 
+    public Uni<List<Instance>> listDeployment(@PathParam("name") String name) throws InterruptedException {
+       return getInstanceCollection()
+               .find()
+               .map(document -> {
+                   Instance instance = new Instance();
+                   instance.setName(document.getString("name"));
+                   instance.setVnfcList((List<VNFc>) document.get("vnfc"));
+                   return instance;
+               })
+               .collect().asList();
+    }
+
+
+//    public List<Instance> listDeployment(@PathParam("name") String name) {
+//        CopyOnWriteArrayList<Instance> resultList = new CopyOnWriteArrayList<>();
+//
+//        CompletableFuture<List<Instance>> completionStage = getInstanceCollection()
+//                .find(new Document("name", name))
+//                .map(document -> {
+//                    Instance instance = new Instance();
+//                    instance.setName(document.getString("name"));
+//                    instance.setVnfcList((List<VNFc>) document.get("vnfc"));
+//                    resultList.add(instance);
+//                    return instance;
+//                })
+//                .collect().asList().subscribe().asCompletionStage();
+//
+//        completionStage.toCompletableFuture().join(); // Chờ đợi hoàn thành
+//
+//        return resultList;
+//    }
     public Uni<List<VNF_Instance>> listVNFc(@PathParam("name") String name){
         return getCollection()
                 .find(new Document("name", name))
@@ -216,95 +520,23 @@ public class LCM_Services {
     }
 
     public Uni<Void> deleteVNF(@PathParam("name") String name){
+        try(KubernetesClient client = new DefaultKubernetesClient(config)){
+            client.namespaces().withName(name).delete();
+            System.out.println("Da xoa VNF Instance");
+        }
         return getCollection().deleteOne( new Document("name", name))
                 .onItem().ignore().andContinueWithNull();
     }
 
-//    public Uni<Void> updateVnfInstance(@PathParam("vnfInstanceName") String vnfInstanceName) {
-//
-//        Document query = new Document("vnfInstanceName", vnfInstanceName);
-//        Document update = new Document("$set", new Document("instantiationState", "Terminate"));
-//
-//        return getCollection().updateOne(query, update)
-//                .onItem().ignore().andContinueWithNull();
-//    }
-//
-//    public Uni<Void> updateInstantiateVnfInstance(@PathParam("vnfInstanceName") String vnfInstanceName) {
-//
-//        Document query = new Document("vnfInstanceName", vnfInstanceName);
-//        Document update = new Document("$set", new Document("instantiationState", "Active"));
-//
-//        return getCollection().updateOne(query, update)
-//                .onItem().ignore().andContinueWithNull();
-//    }
-//
-//    public Uni<Void> addVnf(@PathParam("namespace") String namespace) throws IOException {
-//        String toscaFilePath = "D:\\NFVM\\src\\main\\resources\\TOSCA.yaml";
-//
-//        String toscaContent = new String(Files.readAllBytes(Paths.get(toscaFilePath)));
-//
-//        Yaml yaml = new Yaml();
-//        Object parsedObject = yaml.load(toscaContent);
-//
-//        if (parsedObject instanceof Map) {
-//            Map<String, Object> toscaMap = (Map<String, Object>) parsedObject;
-//            Map<String, Object> topologyTemplate = (Map<String, Object>) toscaMap.get("topology_template");
-//            Map<String, Object> nodeTemplates = (Map<String, Object>) topologyTemplate.get("node_templates");
-//            Map<String, Object> vnf001 = (Map<String, Object>) nodeTemplates.get("vnf_001");
-//            Map<String, Object> properties = (Map<String, Object>) vnf001.get("properties");
-//
-//            String vnfInstanceName = (String) properties.get("vnfInstanceName");
-//            String vnfInstanceDescription = (String) properties.get("vnfInstanceDescription");
-//            String vnfdid = (String) properties.get("vnfdid");
-//            String vnfProvider = (String) properties.get("vnfProvider");
-//            String vnfProductName = (String) properties.get("vnfProductName");
-//            String vnfSoftwareVersion = (String) properties.get("vnfSoftwareVersion");
-//            String instantiationState = (String) properties.get("instantiationState");
-//
-//
-//            Document document = new Document();
-//            document.append("vnfInstanceName", vnfInstanceName);
-//            document.append("vnfInstanceDescription", vnfInstanceDescription);
-//            document.append("vnfdid", vnfdid);
-//            document.append("vnfProvider", vnfProvider);
-//            document.append("vnfProductName", vnfProductName);
-//            document.append("vnfSoftwareVersion", vnfSoftwareVersion);
-//            document.append("instantiationState", instantiationState);
-//
-//            return getCollection().insertOne(document)
-//                    .onItem().ignore().andContinueWithNull();
-//        }
-//
-//        return null;
-//    }
-//
-//    public Uni<Void> DeleteVnf(@PathParam("vnfInstanceName") String vnfInstanceName){
-//        Document filter = new Document("vnfInstanceName", vnfInstanceName);
-//        return getCollection().deleteOne(filter)
-//                .onItem().ignore().andContinueWithNull();
-//    }
 
     @Inject
     ReactiveMongoClient mongoClient;
 
-//    public Uni<List<Vnf>> listVnf(){
-//        return getCollection()
-//                .find()
-//                .map(document -> {
-//                    Vnf  vnf= new Vnf();
-//                    vnf.setId(document.getString("id"));
-//                    vnf.setVnfInstanceName(document.getString("vnfInstanceName"));
-//                    vnf.setVnfInstanceDescription(document.getString("vnfInstanceDescription"));
-//                    vnf.setVnfdid(document.getString("vnfdid"));
-//                    vnf.setVnfProvider(document.getString("vnfProvider"));
-//                    vnf.setVnfProductName(document.getString("vnfProductName"));
-//                    vnf.setVnfSoftwareVersion(document.getString("vnfSoftwareVersion"));
-//                    vnf.setInstantiationState(document.getString("instantiationState"));
-//                    return vnf;
-//                }).collect().asList();
-//    }
-
     private ReactiveMongoCollection<Document> getCollection(){
         return mongoClient.getDatabase("test").getCollection("vnf");
+    }
+
+    private ReactiveMongoCollection<Document> getInstanceCollection(){
+        return mongoClient.getDatabase("test").getCollection("vnfc");
     }
 }

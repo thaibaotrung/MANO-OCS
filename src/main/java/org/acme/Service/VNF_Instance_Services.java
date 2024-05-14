@@ -41,33 +41,11 @@ public class VNF_Instance_Services {
 
     private static final Logger logger = LoggerFactory.getLogger(VNF_Instance_Services.class);
     Config config = new ConfigBuilder()
-            .withMasterUrl("https://127.0.0.1:58209")
+            .withMasterUrl("https://127.0.0.1:53242")
             .withTrustCerts(true)
             .build();
     public Uni<Void> add_VNF_Instance(VNF_Instance vnf_instance){
 
-//        try (KubernetesClient client = new DefaultKubernetesClient(config)) {
-//
-//            PodList podList = client.pods().inNamespace("default").list();
-//
-//            List<VNFc> listVNFc = new ArrayList<>();
-//            // In ra tên của các Pod
-//            for (Pod pod : podList.getItems()) {
-//                String ip = pod.getStatus().getPodIP();
-//                String state = pod.getStatus().getPhase();
-//                String uid = pod.getMetadata().getUid();
-//                String podName = pod.getMetadata().getName();
-//                String nodeName = pod.getSpec().getNodeName();
-//
-//                VNFc vnfc = new VNFc();
-//                vnfc.setId(uid);
-//                vnfc.setName(podName);
-//                vnfc.setIp(ip);
-//                vnfc.setNodeName(nodeName);
-//                vnfc.setState(state);
-//
-//                listVNFc.add(vnfc);
-//            }
 
             Document document1 = new Document()
                     .append("name", vnf_instance.getName())

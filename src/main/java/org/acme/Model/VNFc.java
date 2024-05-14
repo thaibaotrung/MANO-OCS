@@ -7,6 +7,8 @@ public class VNFc {
     private String ip;
     private String nodeName;
 
+    private int numberofinstance;
+
     public String getId() {
         return id;
     }
@@ -45,5 +47,13 @@ public class VNFc {
 
     public void setNodeName(String nodeName) {
         this.nodeName = nodeName;
+    }
+
+    public int getNumberofinstance() {
+        return numberofinstance;
+    }
+
+    public void setNumberofinstance(int numberofinstance) {
+        this.numberofinstance = numberofinstance;
     }
 }

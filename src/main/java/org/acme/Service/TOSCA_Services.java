@@ -9,20 +9,166 @@ import org.acme.Model.*;
 import org.bson.Document;
 import org.yaml.snakeyaml.Yaml;
 
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 @ApplicationScoped
 public class TOSCA_Services {
 
+//    public Deployment addDeployment() throws IOException {
+//        String metadataFilePath = "D:\\20232\\TOSCA\\metadata\\tosca.yaml";
+//
+//        String metadataContent = new String(Files.readAllBytes(Paths.get(metadataFilePath)));
+//
+//        Yaml metadata3 = new Yaml();
+//        Object parsedObject = metadata3.load(metadataContent);
+//        Deployment deployment = new Deployment();
+//
+//        if (parsedObject instanceof Map) {
+//            Map<String, Object> metadataMap1 = (Map<String, Object>) parsedObject;
+//            String name4 = (String) metadataMap1.get("name");
+//            Double versionValue = (Double) metadataMap1.get("version");
+//            String version = String.valueOf(versionValue);
+//            String createdBy = (String) metadataMap1.get("createdBy");
+//
+//
+//            String mongoDeploymentFilePath = "D:\\20232\\TOSCA\\k8s_resources\\mongo_deployment.yaml";
+//
+//            String mongoDeploymentContent = new String(Files.readAllBytes(Paths.get(mongoDeploymentFilePath)));
+//
+//            Yaml MongoDeploymentdata = new Yaml();
+//            Object parsedObject1 = MongoDeploymentdata.load(mongoDeploymentContent);
+//
+//            Map<String, Object> MongoDeploymentMap = (Map<String, Object>) parsedObject1;
+//            String apiVersion = (String) MongoDeploymentMap.get("apiVersion");
+//            String kind = (String) MongoDeploymentMap.get("kind");
+//            Map<String, Object> MetadataMap = (Map<String, Object>) MongoDeploymentMap.get("metadata");
+//            String name = (String) MetadataMap.get("name");
+//            Deployment.Metadata metadata = new Deployment.Metadata();
+//            metadata.setName(name);
+//            Map<String, Object> LabelsMap = (Map<String, Object>) MetadataMap.get("labels");
+//            String app = (String) LabelsMap.get("app");
+//            Deployment.Metadata.Labels labels = new Deployment.Metadata.Labels();
+//            labels.setApp(app);
+//            metadata.setLabels(labels);
+//
+//            System.out.println(name);
+//            Map<String, Object> SpecMap = (Map<String, Object>) MongoDeploymentMap.get("spec");
+//            Integer replicasString = (Integer) SpecMap.get("replicas");
+//            String replicas = replicasString.toString();
+//            Map<String, Object> selectorMap = (Map<String, Object>) SpecMap.get("selector");
+//            Map<String, Object> matchLabelsMap = (Map<String, Object>) selectorMap.get("matchLabels");
+//            String app1 = (String) matchLabelsMap.get("app");
+//            Deployment.Spec.Selector.MatchLabels matchLabels = new Deployment.Spec.Selector.MatchLabels();
+//            matchLabels.setApp(app1);
+//            Deployment.Spec.Selector selector = new Deployment.Spec.Selector();
+//            selector.setMatchLabels(matchLabels);
+//            Map<String, Object> templateMap = (Map<String, Object>) SpecMap.get("template");
+//            Map<String, Object> metadataMap = (Map<String, Object>) templateMap.get("metadata");
+//            Map<String, Object> labelsMap = (Map<String, Object>) metadataMap.get("labels");
+//            String app2 = (String) labelsMap.get("app");
+//            Deployment.Spec.Template.Metadata.Labels labels1 = new Deployment.Spec.Template.Metadata.Labels();
+//            labels1.setApp(app2);
+//            Deployment.Spec.Template.Metadata metadata1 = new Deployment.Spec.Template.Metadata();
+//            metadata1.setLabels(labels1);
+//            Deployment.Spec.Template template = new Deployment.Spec.Template();
+//            template.setMetadata(metadata1);
+//
+//            Map<String, Object> specifitionMap = (Map<String, Object>) templateMap.get("spec");
+////            Map<String, Object> containersMap = (Map<String, Object>) specifitionMap.get("containers");
+//            List<Map<String, Object>> containersMap = (List<Map<String, Object>>) specifitionMap.get("containers");
+//            for (Map<String, Object> container : containersMap) {
+//                String name1 = (String) container.get("name");
+//                String image = (String) container.get("image");
+////                Map<String, Object> portMap = (Map<String, Object>) container.get("ports");
+//                List<Map<String, Object>> portsMap = (List<Map<String, Object>>) container.get("ports");
+//                Deployment.Spec.Template.Specification.Container.Ports ports = new Deployment.Spec.Template.Specification.Container.Ports();
+//                for (Map<String, Object> port : portsMap) {
+////                    String containerPort = (String) port.get("containerPort");
+//                    Integer containerPortInteger = (Integer) port.get("containerPort");
+//                    String containerPort = containerPortInteger.toString();
+//                    ports.setContainerPort(containerPort);
+//                }
+//
+////                Deployment.Spec.Template.Specification.Container.Ports ports = new Deployment.Spec.Template.Specification.Container.Ports();
+////                ports.setContainerPort(containerPort);
+//                Deployment.Spec.Template.Specification.Container containers = new Deployment.Spec.Template.Specification.Container();
+//                containers.setName(name1);
+//                containers.setImage(image);
+//                containers.setPorts(ports);
+//                Deployment.Spec.Template.Specification specification = new Deployment.Spec.Template.Specification();
+//                specification.setContainers(containers);
+//
+//                template.setSpecification(specification);
+//
+//                Deployment.Spec spec = new Deployment.Spec();
+//                spec.setReplicas(replicas);
+//                spec.setSelector(selector);
+//                spec.setTemplate(template);
+//
+////                Deployment deployment = new Deployment();
+//                deployment.setApiVersion(apiVersion);
+//                deployment.setKind(kind);
+//                deployment.setMetadata(metadata);
+//                deployment.setSpec(spec);
+//
+//
+////
+//            }
+//        }
+//
+//        return  deployment;
+//    }
+
+    public void uploadFile(InputStream uploadedInputStream, String uploadedFileLocation) throws IOException {
+        try (OutputStream out = new FileOutputStream(new File(uploadedFileLocation))) {
+            int read;
+            byte[] bytes = new byte[1024];
+            while ((read = uploadedInputStream.read(bytes)) != -1) {
+                out.write(bytes, 0, read);
+            }
+            out.flush();
+        }
+    }
     public Deployment addDeployment() throws IOException {
-        String metadataFilePath = "D:\\20232\\TOSCA\\metadata\\tosca.yaml";
+
+//        String destinationPath = "D:\\";
+//
+//        // Tạo một đối tượng ZipInputStream từ TOSCAFILE
+//        try (ZipInputStream zipInputStream = new ZipInputStream(new FileInputStream(TOSCAFILE))) {
+//            // Đọc từng Entry (tệp) từ zipInputStream
+//            ZipEntry entry;
+//            while ((entry = zipInputStream.getNextEntry()) != null) {
+//                // Đường dẫn đến tệp trong thư mục giải nén
+//                String filePath = destinationPath + entry.getName();
+//                // Tạo một tệp mới cho entry nếu nó không phải là một thư mục
+//                if (!entry.isDirectory()) {
+//                    // Tạo các thư mục cha nếu chúng không tồn tại
+//                    new File(filePath).getParentFile().mkdirs();
+//                    // Mở một đối tượng FileOutputStream để ghi tệp
+//                    try (FileOutputStream fileOutputStream = new FileOutputStream(filePath)) {
+//                        // Ghi dữ liệu từ zipInputStream vào FileOutputStream
+//                        byte[] buffer = new byte[1024];
+//                        int bytesRead;
+//                        while ((bytesRead = zipInputStream.read(buffer)) != -1) {
+//                            fileOutputStream.write(buffer, 0, bytesRead);
+//                        }
+//                    }
+//                }
+//                // Đóng entry hiện tại
+//                zipInputStream.closeEntry();
+//            }
+//        }
+        String metadataFilePath = "D:\\TOSCA\\TOSCA\\metadata\\tosca.yaml";
 
         String metadataContent = new String(Files.readAllBytes(Paths.get(metadataFilePath)));
+
 
         Yaml metadata3 = new Yaml();
         Object parsedObject = metadata3.load(metadataContent);
@@ -36,7 +182,7 @@ public class TOSCA_Services {
             String createdBy = (String) metadataMap1.get("createdBy");
 
 
-            String mongoDeploymentFilePath = "D:\\20232\\TOSCA\\k8s_resources\\mongo_deployment.yaml";
+            String mongoDeploymentFilePath = "D:\\TOSCA\\TOSCA\\k8s_resources\\mongo_deployment.yaml";
 
             String mongoDeploymentContent = new String(Files.readAllBytes(Paths.get(mongoDeploymentFilePath)));
 
@@ -129,7 +275,7 @@ public class TOSCA_Services {
         Deployment deployment = new Deployment();
 
 
-            String mongoDeploymentFilePath = "D:\\20232\\TOSCA\\k8s_resources\\web_deployment.yaml";
+            String mongoDeploymentFilePath = "D:\\TOSCA\\TOSCA\\k8s_resources\\web_deployment.yaml";
 
             String mongoDeploymentContent = new String(Files.readAllBytes(Paths.get(mongoDeploymentFilePath)));
 
@@ -217,7 +363,7 @@ public class TOSCA_Services {
 
 
     public Service addService() throws IOException {
-        String mongoServiceFilePath = "D:\\20232\\TOSCA\\k8s_resources\\mongo_service.yaml";
+        String mongoServiceFilePath = "D:\\TOSCA\\TOSCA\\k8s_resources\\mongo_service.yaml";
 
         String mongoServiceContent = new String(Files.readAllBytes(Paths.get(mongoServiceFilePath)));
 
@@ -267,7 +413,7 @@ public class TOSCA_Services {
 
 
     public Service addService2() throws IOException {
-        String mongoServiceFilePath = "D:\\20232\\TOSCA\\k8s_resources\\web_service.yaml";
+        String mongoServiceFilePath = "D:\\TOSCA\\TOSCA\\k8s_resources\\web_service.yaml";
 
         String mongoServiceContent = new String(Files.readAllBytes(Paths.get(mongoServiceFilePath)));
 
@@ -320,7 +466,7 @@ public class TOSCA_Services {
     }
 
     public ConfigMap addConfigMap() throws IOException{
-        String configMapFilePath = "D:\\20232\\TOSCA\\k8s_resources\\configMap.yaml";
+        String configMapFilePath = "D:\\TOSCA\\TOSCA\\k8s_resources\\configMap.yaml";
 
         String configMapContent = new String(Files.readAllBytes(Paths.get(configMapFilePath)));
 
@@ -351,7 +497,7 @@ public class TOSCA_Services {
     }
 
     public Secret addSecret() throws IOException{
-        String SecretFilePath = "D:\\20232\\TOSCA\\k8s_resources\\secret.yaml";
+        String SecretFilePath = "D:\\TOSCA\\TOSCA\\k8s_resources\\secret.yaml";
 
         String SecretContent = new String(Files.readAllBytes(Paths.get(SecretFilePath)));
 
@@ -388,7 +534,7 @@ public class TOSCA_Services {
     }
 
     public Uni<Void> addVnfd() throws IOException{
-        String metadataFilePath = "D:\\20232\\TOSCA\\metadata\\tosca.yaml";
+        String metadataFilePath = "D:\\TOSCA\\TOSCA\\metadata\\tosca.yaml";
 
         String metadataContent = new String(Files.readAllBytes(Paths.get(metadataFilePath)));
 
@@ -401,13 +547,15 @@ public class TOSCA_Services {
         String createdBy = (String) metadataMap1.get("created-by");
         String provider = (String) metadataMap1.get("provider");
 
-        String definitionsFilePath = "D:\\20232\\TOSCA\\definitions\\definitions.yaml";
+        String definitionsFilePath = "D:\\TOSCA\\TOSCA\\definitions\\definitions.yaml";
 
         String definitionsContent = new String(Files.readAllBytes(Paths.get(definitionsFilePath)));
 
         Yaml metadata4 = new Yaml();
         Object parsedObject1 = metadata4.load(definitionsContent);
-        List<Map<String, Object>> definitionsMap = (List<Map<String, Object>>) parsedObject1;
+        Map<String, Object> definition1 = (Map<String, Object>) parsedObject1;
+        List<Map<String, Object>> vdus = (List<Map<String, Object>>) definition1.get("vdus");
+        List<Map<String, Object>> definitionsMap = (List<Map<String, Object>>) vdus;
         for(Map<String, Object> definition : definitionsMap) {
             int min_number_of_instance = (int) definition.get("min_number_of_instance");
             int max_number_of_instance = (int) definition.get("max_number_of_instance");
@@ -456,8 +604,9 @@ public class TOSCA_Services {
     }
 
 
+
     public Uni<Deployment> getMongoDeployment() throws IOException {
-        String mongoDeploymentFilePath = "D:\\20232\\TOSCA\\k8s_resources\\mongo_deployment.yaml";
+        String mongoDeploymentFilePath = "D:\\TOSCA\\TOSCA\\k8s_resources\\mongo_deployment.yaml";
 
         String mongoDeploymentContent = new String(Files.readAllBytes(Paths.get(mongoDeploymentFilePath)));
 
