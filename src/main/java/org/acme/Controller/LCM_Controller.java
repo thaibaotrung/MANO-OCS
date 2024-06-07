@@ -8,6 +8,7 @@ import jakarta.ws.rs.core.MediaType;
 import org.acme.Model.Instance;
 import org.acme.Model.VNF_Instance;
 import org.acme.Model.VNFc;
+import org.acme.Model.Vnfd;
 import org.acme.Service.LCM_Services;
 
 
@@ -22,28 +23,28 @@ public class LCM_Controller {
     @Inject
     LCM_Services lcm_services;
 
-    @POST
+    @GET
     @Path("/instantiate/{name}")
     public CompletableFuture<Void> Instantiate(@PathParam("name") String name) throws InterruptedException {
         return lcm_services.Instantiate(name);
     }
 
-    @POST
+    @GET
     @Path("/terminate/{name}")
-    public Uni<Void> Terminate(@PathParam("name") String name){
+    public CompletableFuture<Void> Terminate(@PathParam("name") String name){
         return lcm_services.Terminate(name);
     }
 
-    @POST
+    @GET
     @Path("/healing/{name}")
-    public void Healing(@PathParam("name") String name){
-        lcm_services.HealingVnf(name);
+    public CompletableFuture<Void> Healing(@PathParam("name") String name){
+        return lcm_services.HealingVnf(name);
     }
 
     @GET
     @Path("/list")
-    public Uni<List<VNF_Instance>> listVNF(){
-        return lcm_services.listVNF();
+    public Uni<List<VNF_Instance>> listVNF(@QueryParam("name") String name){
+        return lcm_services.listVNF(name);
     }
 
     @GET
@@ -64,9 +65,21 @@ public class LCM_Controller {
         return lcm_services.listDeployment(name);
     }
 
+    @GET
+    @Path("/listVnfd")
+    public Uni<List<Vnfd>> listVnfd() throws InterruptedException{
+        return lcm_services.listVNFD();
+    }
+
+    @GET
+    @Path("/listLcmOpocc/{name}")
+    public Uni<List<VNF_Instance>> listLCMOPOCC(@PathParam("name") String name){
+        return lcm_services.listLCMOPOCC(name);
+    }
+
     @DELETE
     @Path("/delete/{name}")
-    public Uni<Void> deleteVNF(String name){
+    public CompletableFuture<Void> deleteVNF(String name){
         return lcm_services.deleteVNF(name);
     }
 }

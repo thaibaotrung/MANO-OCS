@@ -1,7 +1,6 @@
 package org.acme.Controller;
 
 import java.io.*;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -10,7 +9,6 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.*;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
-import org.springframework.web.bind.annotation.RequestParam;
 
 
 @Path("/file")
@@ -118,4 +116,6 @@ public class UploadFileService {
         zis.close();
         fis.close();
     }
+
+
 }

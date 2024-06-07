@@ -1,22 +1,34 @@
 package org.acme.Model;
 
+import org.bson.types.ObjectId;
+
 import java.util.List;
 
 public class VNF_Instance {
-    private String id;
+    private ObjectId _id;
     private  String name;
-    private String state;
-    private String vnfdId;
+    private String status;
+    private String vnfdName;
 
     private String description;
     private List<VNFc> vnfcList;
 
-    public String getId() {
-        return id;
+    private List<LCMOPCC> listLcmOpcc;
+
+    public List<LCMOPCC> getListLcmOpcc() {
+        return listLcmOpcc;
     }
 
-    public void setId(String id) {
-        this.id = id;
+    public ObjectId get_id() {
+        return _id;
+    }
+
+    public void set_id(ObjectId _id) {
+        this._id = _id;
+    }
+
+    public void setListLcmOpcc(List<LCMOPCC> listLcmOpcc) {
+        this.listLcmOpcc = listLcmOpcc;
     }
 
     public String getName() {
@@ -27,20 +39,20 @@ public class VNF_Instance {
         this.name = name;
     }
 
-    public String getState() {
-        return state;
+    public String getStatus() {
+        return status;
     }
 
-    public void setState(String state) {
-        this.state = state;
+    public void setStatus(String status) {
+        this.status = status;
     }
 
-    public String getVnfdId() {
-        return vnfdId;
+    public String getVnfdName() {
+        return vnfdName;
     }
 
-    public void setVnfdId(String vnfdId) {
-        this.vnfdId = vnfdId;
+    public void setVnfdName(String vnfdName) {
+        this.vnfdName = vnfdName;
     }
 
     public String getDescription() {

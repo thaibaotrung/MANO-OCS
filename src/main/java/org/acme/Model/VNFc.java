@@ -7,7 +7,16 @@ public class VNFc {
     private String ip;
     private String nodeName;
 
+    private String lcmState;
     private int numberofinstance;
+
+    public String getLcmState() {
+        return lcmState;
+    }
+
+    public void setLcmState(String lcmState) {
+        this.lcmState = lcmState;
+    }
 
     public String getId() {
         return id;

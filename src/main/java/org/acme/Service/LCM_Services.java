@@ -1,6 +1,11 @@
 package org.acme.Service;
 
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Updates;
 import io.fabric8.kubernetes.api.model.*;
+import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.Secret;
+import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentList;
 import io.fabric8.kubernetes.client.*;
@@ -14,13 +19,13 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.QueryParam;
-import org.acme.Model.Instance;
-import org.acme.Model.VNF_Instance;
-import org.acme.Model.VNFc;
+import org.acme.Model.*;
 import org.bson.Document;
+import org.bson.conversions.Bson;
 
 
 import javax.print.Doc;
+import java.util.Date;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
@@ -33,7 +38,7 @@ import java.util.List;
 @ApplicationScoped
 public class LCM_Services {
     Config config = new ConfigBuilder()
-            .withMasterUrl("https://127.0.0.1:53242")
+            .withMasterUrl("https://127.0.0.1:58655")
             .withTrustCerts(true)
             .build();
 
@@ -71,25 +76,29 @@ public class LCM_Services {
             client.apps().deployments().inNamespace(name).create(Webdeployment);
 
 
-            String MongoServiceYamlPath = "D:\\TOSCA\\TOSCA\\k8s_resources\\mongo_service.yaml";
-            byte[] MongoServiceYamlBytes = Files.readAllBytes(Paths.get(MongoServiceYamlPath));
-            String MongoServiceYamlContent = new String(MongoServiceYamlBytes);
+                String MongoServiceYamlPath = "D:\\TOSCA\\TOSCA\\k8s_resources\\mongo_service.yaml";
+                byte[] MongoServiceYamlBytes = Files.readAllBytes(Paths.get(MongoServiceYamlPath));
+                String MongoServiceYamlContent = new String(MongoServiceYamlBytes);
 
-            Service MongoService = Serialization.unmarshal(MongoServiceYamlContent, Service.class);
-            client.services().inNamespace(name).create(MongoService);
+                Service MongoService = Serialization.unmarshal(MongoServiceYamlContent, Service.class);
+                client.services().inNamespace(name).create(MongoService);
 
+            ServiceList services = client.services().inAnyNamespace().list();
+            boolean serviceExists = services.getItems().stream()
+                    .anyMatch(service -> service.getMetadata().getName().equals("webapp-service"));
 
-            String WebServiceYamlPath = "D:\\TOSCA\\TOSCA\\k8s_resources\\web_service.yaml";
-            byte[] WebServiceYamlBytes = Files.readAllBytes(Paths.get(WebServiceYamlPath));
-            String WebServiceYamlContent = new String(WebServiceYamlBytes);
+            if (!serviceExists) {
+                String WebServiceYamlPath = "D:\\TOSCA\\TOSCA\\k8s_resources\\web_service.yaml";
+                byte[] WebServiceYamlBytes = Files.readAllBytes(Paths.get(WebServiceYamlPath));
+                String WebServiceYamlContent = new String(WebServiceYamlBytes);
 
-            Service WebService = Serialization.unmarshal(WebServiceYamlContent, Service.class);
-            client.services().inNamespace(name).create(WebService);
-
+                Service WebService = Serialization.unmarshal(WebServiceYamlContent, Service.class);
+                client.services().inNamespace(name).create(WebService);
+            }
 
             System.out.println("Đã bật VNF thành công");
 
-            TimeUnit.SECONDS.sleep(10);
+            TimeUnit.SECONDS.sleep(30);
 
             PodList podList = client.pods().inNamespace(name).list();
 
@@ -122,6 +131,31 @@ public class LCM_Services {
                 listDeployment.add(vnFc);
             }
 
+            List<LCMOPCC> listLcmOpocc = new ArrayList<>();
+
+            for(Pod pod : podList.getItems()){
+                LCMOPCC lcmopcc = new LCMOPCC();
+                String name1 = pod.getMetadata().getName();
+                VNFc vnFc = new VNFc();
+                vnFc.setName(name1);
+                vnFc.setLcmState("ADDED");
+                lcmopcc.setOperation("INSTANTIATE");
+                lcmopcc.setOperationState("COMPLETED");
+                Date currentTime = new Date();
+                lcmopcc.setStartTime(currentTime);
+                lcmopcc.setAffectVnfc(vnFc);
+                listLcmOpocc.add(lcmopcc);
+            }
+
+
+//            List<LCMOPCC> listLcmOpocc = new ArrayList<>();
+//            LCMOPCC lcmopcc = new LCMOPCC();
+//            lcmopcc.setOperationState("Instatiate");
+//            Date currentTime = new Date();
+//            lcmopcc.setStartTime(currentTime);
+//
+//            listLcmOpocc.add(lcmopcc);
+
             Document document = new Document()
                     .append("vnfc", listDeployment)
                     .append("name", name);
@@ -131,7 +165,7 @@ public class LCM_Services {
             Document query = new Document("name", name);
 //            Document update = new Document("$set", new Document("vnfc", listVNFc));
 //            Document update1 = new Document("$set", new Document("state", "IN_USE"));
-            Document update = new Document("$set", new Document("vnfc", listVNFc).append("state", "IN_USE"));
+            Document update = new Document("$set", new Document("vnfc", listVNFc).append("status", "STARTED"));
 //            return getCollection().updateMany(query, update)
 //                    .onItem().ignore().andContinueWithNull();
 //             getCollection().updateOne(query, update1)
@@ -154,6 +188,14 @@ public class LCM_Services {
                         // Đối với updateMany, thường không cần xử lý kết quả ở đây
                     });
 
+            getCollection().updateOne(Filters.eq("name", name),
+                            Updates.pushEach("lcmopocc", listLcmOpocc))
+                    .onItem().ignore().andContinueWithNull()
+                    .subscribe().with(result -> {
+                        // Xử lý kết quả nếu cần
+                        // Đối với insertOne, thường không cần xử lý kết quả ở đây
+                    });
+
             // Khi cả hai hoạt động hoàn thành, hoặc bất kỳ lỗi nào xảy ra,
             // chúng ta gán giá trị null cho CompletableFuture để hoàn thành nó
             future.complete(null);
@@ -169,8 +211,23 @@ public class LCM_Services {
         return null;
     }
 
-    public Uni<Void> Terminate(@PathParam("name") String name){
+    public CompletableFuture<Void> Terminate(@PathParam("name") String name){
+        List<LCMOPCC> listLcmOpocc = new ArrayList<>();
         try (KubernetesClient client = new DefaultKubernetesClient(config)) {
+            PodList podList = client.pods().inNamespace(name).list();
+            for(Pod pod : podList.getItems()){
+                LCMOPCC lcmopcc = new LCMOPCC();
+                String name1 = pod.getMetadata().getName();
+                VNFc vnFc = new VNFc();
+                vnFc.setName(name1);
+                vnFc.setLcmState("REMOVED");
+                lcmopcc.setOperation("TERMINATE");
+                lcmopcc.setOperationState("COMPLETED");
+                Date currentTime = new Date();
+                lcmopcc.setStartTime(currentTime);
+                lcmopcc.setAffectVnfc(vnFc);
+                listLcmOpocc.add(lcmopcc);
+            }
             client.apps().deployments().inNamespace(name).delete();
             client.apps().deployments().inNamespace(name).delete();
             client.services().inNamespace(name).delete();
@@ -178,106 +235,83 @@ public class LCM_Services {
             client.secrets().inNamespace(name).delete();
             client.configMaps().inNamespace(name).delete();
             System.out.println("Pod đã được tắt.");
+
         }
+
         Document query = new Document("name", name);
 //        Document update = new Document("$set", new Document("vnfc", null));
 //        Document update1 = new Document("$set", new Document("state", "NOT_IN_USE"));
-        Document update = new Document("$set", new Document("vnfc", null).append("state", "NOT_IN_USE"));
+        Document update = new Document("$set", new Document("vnfc", null).append("state", "STOPPED"));
 
-        return getCollection().updateMany(query, update)
-                .onItem().ignore().andContinueWithNull();
+        Document lcmopoccDocument = new Document("lcmopocc", listLcmOpocc);
 
-    }
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        getCollection().updateMany(query, update)
+                .onItem().ignore().andContinueWithNull()
+                .subscribe().with(result -> {
+                    // Xử lý kết quả nếu cần
+                    // Đối với insertOne, thường không cần xử lý kết quả ở đây
+                });
 
-//    public Uni<Void> HealingVnf(@PathParam("name") String name) {
-//        final Watch[] watch = {null};
-//        try (KubernetesClient client = new DefaultKubernetesClient(config)) {
-//            // Tắt các pod có nhãn app: "reddit" trong namespace "default"
-//            List<VNFc> listVNFc = new ArrayList<>();
-//            client.pods().inNamespace(name).delete();
-//            System.out.println("Các pod đã được tắt.");
-//
-//            // Sử dụng Watch API để theo dõi sự thay đổi trạng thái của các Pod
-//            watch[0] = client.pods().inNamespace(name).watch(new Watcher<Pod>() {
-//                @Override
-//                public void eventReceived(Action action, Pod pod) {
-//                    String podName = pod.getMetadata().getName();
-//                    String state = pod.getStatus().getPhase();
-//
-//                    if ("Running".equals(state)) {
-//                        // Nếu Pod đang ở trạng thái "Running", thêm dữ liệu vào database
-////                        List<VNFc> listVNFc = new ArrayList<>();
-//                        listVNFc.add(createVNFcFromPod(pod));
-//
-////                        Document query = new Document("name", name);
-////                        Document update = new Document("$set", new Document("vnfc", listVNFc));
-////                        getCollection().updateOne(query, update)
-////                                .onItem().ignore().andContinueWithNull();
-//
-//                        // Dừng việc theo dõi khi Pod đã được chạy
-//                        if (watch[0] != null) {
-//                            watch[0].close();
-//                        }
-//                    }
-//                }
-//
-//                @Override
-//                public void onClose(WatcherException cause) {
-//                    if (cause != null) {
-//                        throw new RuntimeException(cause);
-//                    }
-//                }
-//            });
-//
-//            Document query = new Document("name", name);
-//            Document update = new Document("$set", new Document("vnfc", listVNFc));
-//            return getCollection().updateOne(query, update)
-//                    .onItem().ignore().andContinueWithNull();
-//
-//        } catch (Exception e) {
-//            if (watch[0] != null) {
-//                watch[0].close();
-//            }
-//            throw new RuntimeException(e);
-//        }
-//    }
+        getCollection().updateOne(Filters.eq("name", name),
+                Updates.pushEach("lcmopocc", listLcmOpocc))
+                .onItem().ignore().andContinueWithNull()
+                .subscribe().with(result -> {
+                    // Xử lý kết quả nếu cần
+                    // Đối với insertOne, thường không cần xử lý kết quả ở đây
+                });
 
-    // Hàm này tạo đối tượng VNFc từ một Pod
-    private VNFc createVNFcFromPod(Pod pod) {
-        String ip = pod.getStatus().getPodIP();
-        String state = pod.getStatus().getPhase();
-        String uid = pod.getMetadata().getUid();
-        String podName = pod.getMetadata().getName();
-        String nodeName = pod.getSpec().getNodeName();
+        future.complete(null);
 
-        VNFc vnfc = new VNFc();
-        vnfc.setId(uid);
-        vnfc.setName(podName);
-        vnfc.setIp(ip);
-        vnfc.setNodeName(nodeName);
-        vnfc.setState(state);
-
-        return vnfc;
+        return future;
     }
 
 
 
-
-
-
-    public Uni<Void> HealingVnf(@PathParam("name") String name){
+    public CompletableFuture<Void> HealingVnf(@PathParam("name") String name){
+        List<LCMOPCC> listLcmOpocc = new ArrayList<>();
         try (KubernetesClient client = new DefaultKubernetesClient(config)) {
+
+            PodList podList2 = client.pods().inNamespace(name).list();
+            for(Pod pod : podList2.getItems()){
+                LCMOPCC lcmopcc = new LCMOPCC();
+                String name1 = pod.getMetadata().getName();
+                VNFc vnFc = new VNFc();
+                vnFc.setName(name1);
+                vnFc.setLcmState("REMOVED");
+                lcmopcc.setOperation("HEALING");
+                lcmopcc.setOperationState("COMPLETED");
+                Date currentTime = new Date();
+                lcmopcc.setStartTime(currentTime);
+                lcmopcc.setAffectVnfc(vnFc);
+                listLcmOpocc.add(lcmopcc);
+            }
             // Tắt các pod có nhãn app: "reddit" trong namespace "default"
             client.pods().inNamespace(name).delete();
             System.out.println("Các pod đã được tắt.");
 
+            TimeUnit.SECONDS.sleep(30);
 
-            TimeUnit.SECONDS.sleep(15);
             PodList podList = client.pods().inNamespace(name).list();
+            for(Pod pod : podList.getItems()){
+                LCMOPCC lcmopcc = new LCMOPCC();
+                String name1 = pod.getMetadata().getName();
+                VNFc vnFc = new VNFc();
+                vnFc.setName(name1);
+                vnFc.setLcmState("ADDED");
+                lcmopcc.setOperation("HEALING");
+                lcmopcc.setOperationState("COMPLETED");
+                Date currentTime = new Date();
+                lcmopcc.setStartTime(currentTime);
+                lcmopcc.setAffectVnfc(vnFc);
+                listLcmOpocc.add(lcmopcc);
+            }
 
+            TimeUnit.SECONDS.sleep(30);
+            PodList podList1 = client.pods().inNamespace(name).list();
             List<VNFc> listVNFc = new ArrayList<>();
             // In ra tên của các Pod
-            for (Pod pod : podList.getItems()) {
+            for (Pod pod : podList1.getItems()) {
                 String ip = pod.getStatus().getPodIP();
                 String state = pod.getStatus().getPhase();
                 String uid = pod.getMetadata().getUid();
@@ -293,28 +327,90 @@ public class LCM_Services {
 
                 listVNFc.add(vnfc);
             }
+
+            CompletableFuture<Void> future = new CompletableFuture<>();
             Document query = new Document("name", name);
 //            Document update = new Document("$set", new Document("vnfc", listVNFc));
 //            Document update1 = new Document("$set", new Document("state", "IN_USE"));
             Document update = new Document("$set", new Document("vnfc", listVNFc));
-            return getCollection().updateOne(query, update)
-                    .onItem().ignore().andContinueWithNull();
+             getCollection().updateOne(query, update)
+                     .onItem().ignore().andContinueWithNull()
+                     .subscribe().with(result -> {
+                         // Xử lý kết quả nếu cần
+                         // Đối với insertOne, thường không cần xử lý kết quả ở đây
+                     });;
+
+            getCollection().updateOne(Filters.eq("name", name),
+                            Updates.pushEach("lcmopocc", listLcmOpocc))
+                    .onItem().ignore().andContinueWithNull()
+                    .subscribe().with(result -> {
+                        // Xử lý kết quả nếu cần
+                        // Đối với insertOne, thường không cần xử lý kết quả ở đây
+                    });;
+
+            future.complete(null);
+
+            return future;
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
-
     }
 
 
 
     public CompletableFuture<Void> scaleVNF(@PathParam("name") String name, VNFc vnFc, @QueryParam("vnfcName") String vnfcName) throws InterruptedException {
-
+        List<LCMOPCC> listLcmOpocc = new ArrayList<>();
         try (KubernetesClient client = new DefaultKubernetesClient(config)) {
+
+            PodList podList1 = client.pods().inNamespace(name).list();
+
+//                LCMOPCC lcmopcc = new LCMOPCC();
+//                VNFc vnFc1 = new VNFc();
+//                vnFc1.setName(vnfcName);
+//                vnFc1.setLcmState("SCALE");
+//                lcmopcc.setOperation("SCALE");
+//                lcmopcc.setOperationState("COMPLETED");
+//                Date currentTime = new Date();
+//                lcmopcc.setStartTime(currentTime);
+//                lcmopcc.setAffectVnfc(vnFc1);
+//                listLcmOpocc.add(lcmopcc);
+
             client.apps().deployments().inNamespace(name).withName(vnfcName)
                     .scale(vnFc.getNumberofinstance());
 
-                            TimeUnit.SECONDS.sleep(15);
+                            TimeUnit.SECONDS.sleep(30);
                 PodList podList = client.pods().inNamespace(name).list();
+
+                List<Pod> newPod = new ArrayList<>();
+                for(Pod pod : podList.getItems()){
+                    boolean isNew = true;
+                    for (Pod currentPod : podList1.getItems()) {
+                        if (pod.getMetadata().getName().equals(currentPod.getMetadata().getName())) {
+                            isNew = false;
+                            break;
+                        }
+                    }
+                    if (isNew) {
+                        newPod.add(pod);
+                    }
+                }
+
+            for(Pod pod : newPod){
+                LCMOPCC lcmopcc = new LCMOPCC();
+                String name1 = pod.getMetadata().getName();
+                System.out.println(name1);
+                VNFc vnFc1 = new VNFc();
+                vnFc1.setName(name1);
+                vnFc1.setLcmState("ADDED");
+                lcmopcc.setOperation("SCALE");
+                lcmopcc.setOperationState("COMPLETED");
+                Date currentTime = new Date();
+                lcmopcc.setStartTime(currentTime);
+                lcmopcc.setAffectVnfc(vnFc1);
+                listLcmOpocc.add(lcmopcc);
+            }
+
+
 
                 List<VNFc> listVNFc = new ArrayList<>();
                 // In ra tên của các Pod
@@ -372,6 +468,13 @@ public class LCM_Services {
                         // Xử lý kết quả nếu cần
                         // Đối với updateMany, thường không cần xử lý kết quả ở đây
                     });
+            getCollection().updateOne(Filters.eq("name", name),
+                            Updates.pushEach("lcmopocc", listLcmOpocc))
+                    .onItem().ignore().andContinueWithNull()
+                    .subscribe().with(result -> {
+                        // Xử lý kết quả nếu cần
+                        // Đối với insertOne, thường không cần xử lý kết quả ở đây
+                    });;
 
             // Khi cả hai hoạt động hoàn thành, hoặc bất kỳ lỗi nào xảy ra,
             // chúng ta gán giá trị null cho CompletableFuture để hoàn thành nó
@@ -456,18 +559,41 @@ public class LCM_Services {
 //                throw new RuntimeException(e);
 //            }
 
-
-
-
-    public Uni<List<VNF_Instance>> listVNF(){
+    public Uni<List<VNF_Instance>> listLCMOPOCC(@PathParam("name") String name){
         return getCollection()
+                .find(new Document("name", name))
+                .map(document -> {
+                    VNF_Instance vnf_instance = new VNF_Instance();
+                    vnf_instance.setListLcmOpcc((List<LCMOPCC>) document.get("lcmopocc"));
+                    return vnf_instance;
+                }).collect().asList();
+    }
+    public Uni<List<Vnfd>> listVNFD(){
+        return getVnfdCollection()
                 .find()
                 .map(document -> {
+                    Vnfd  vnfd= new Vnfd();
+                    vnfd.setName(document.getString("name"));
+                    vnfd.setState(document.getString("state"));
+                    vnfd.setProvider(document.getString("provider"));
+                    vnfd.setVersion(document.getString("version"));
+                    vnfd.setCreatedBy(document.getString("createdBy"));
+                    return vnfd;
+                }).collect().asList();
+    }
+
+
+    public Uni<List<VNF_Instance>> listVNF(@QueryParam("name") String name){
+        String regexPattern = ".*" + name + ".*"; // Tạo mẫu regex gần đúng
+        Bson regexFilter = Filters.regex("name", regexPattern, "i"); // "i" để không phân biệt chữ hoa chữ thường
+        return getCollection()
+                .find(regexFilter)
+                .map(document -> {
                     VNF_Instance  vnf= new VNF_Instance();
-                    vnf.setId(document.getString("id"));
+                    vnf.set_id(document.getObjectId("_id"));
                     vnf.setName(document.getString("name"));
-                    vnf.setVnfdId(document.getString("vnfdId"));
-                    vnf.setState(document.getString("state"));
+                    vnf.setVnfdName(document.getString("vnfdName"));
+                    vnf.setStatus(document.getString("status"));
                     vnf.setDescription(document.getString("description"));
                     return vnf;
                 }).collect().asList();
@@ -475,7 +601,7 @@ public class LCM_Services {
 
     public Uni<List<Instance>> listDeployment(@PathParam("name") String name) throws InterruptedException {
        return getInstanceCollection()
-               .find()
+               .find(new Document("name", name))
                .map(document -> {
                    Instance instance = new Instance();
                    instance.setName(document.getString("name"));
@@ -509,23 +635,38 @@ public class LCM_Services {
                 .find(new Document("name", name))
                 .map(document -> {
                     VNF_Instance vnf = new VNF_Instance();
-                    vnf.setId(document.getString("id"));
+                    vnf.set_id(document.getObjectId("_id"));
                     vnf.setName(document.getString("name"));
-                    vnf.setState(document.getString("state"));
-                    vnf.setVnfdId(document.getString("vnfdId"));
+                    vnf.setStatus(document.getString("status"));
+                    vnf.setVnfdName(document.getString("vnfdName"));
                     vnf.setDescription(document.getString("description"));
                     vnf.setVnfcList((List<VNFc>) document.get("vnfc"));
                     return vnf;
                 }).collect().asList();
     }
 
-    public Uni<Void> deleteVNF(@PathParam("name") String name){
+    public CompletableFuture<Void> deleteVNF(@PathParam("name") String name){
         try(KubernetesClient client = new DefaultKubernetesClient(config)){
             client.namespaces().withName(name).delete();
             System.out.println("Da xoa VNF Instance");
         }
-        return getCollection().deleteOne( new Document("name", name))
-                .onItem().ignore().andContinueWithNull();
+        CompletableFuture<Void> future = new CompletableFuture<>();
+
+        getInstanceCollection().deleteMany( new Document("name", name))
+                .onItem().ignore().andContinueWithNull()
+                .subscribe().with(result -> {
+                    // Xử lý kết quả nếu cần
+                    // Đối với insertOne, thường không cần xử lý kết quả ở đây
+                });;
+        getCollection().deleteOne( new Document("name", name))
+                .onItem().ignore().andContinueWithNull()
+                .subscribe().with(result -> {
+                    // Xử lý kết quả nếu cần
+                    // Đối với insertOne, thường không cần xử lý kết quả ở đây
+                });;
+        future.complete(null);
+
+        return future;
     }
 
 
@@ -538,5 +679,13 @@ public class LCM_Services {
 
     private ReactiveMongoCollection<Document> getInstanceCollection(){
         return mongoClient.getDatabase("test").getCollection("vnfc");
+    }
+
+    private ReactiveMongoCollection<Document> getVnfdCollection(){
+        return mongoClient.getDatabase("test").getCollection("vnfd");
+    }
+
+    private ReactiveMongoCollection<Document> getLcmOpoccCollection(){
+        return mongoClient.getDatabase("test").getCollection("lcmopocc");
     }
 }

@@ -18,7 +18,7 @@ import org.jboss.resteasy.reactive.server.core.multipart.FormData;
 
 import java.io.*;
 
-@Path("/vnfd")
+@Path("/vnflcm/v1/vnf_instances")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 
@@ -51,6 +51,7 @@ public class TOSCA_Controller {
     }
 
     @POST
+    @Path("/vnfd")
     public Uni<Void> addVnfd() throws IOException{
         return services.addVnfd();
   }
